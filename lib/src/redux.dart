@@ -2,7 +2,10 @@
 import 'package:farkle_simulator/src/farkle.dart';
 
 class Roll {
+  // face values rolled
   final List<int> dice;
+
+  // Index:selected state mapping.
   final Map<int, bool> selected;
 
   const Roll(
@@ -20,43 +23,58 @@ class Roll {
 
   Roll copyWithToggledSelection(int index) => new Roll(dice, new Map<int, bool>.from(selected)..[index] = !isSelected(index));
 
+  Roll copyWithAllSelected() => new Roll(dice, new Map<int, bool>.fromIterable(dice, key: (d) => d, value: (d) => true));
+
   bool isSelected(int index) => selected[index] ?? false;
 
   List<int> get selectedDice => new List<int>.from(this.selected.keys.where((index) => isSelected(index)).map((index) => dice[index]));
 }
 
 class FarkleState {
+  // Number of turns played.
   final int turn;
-  final bool isRecording;
 
+  // All previous Combo scores; Farkle turns appear as zeros.
   final List<int> scoreHistory;
+
+  // Combos from previous turns; Farkles appear as empty Lists.
   final List<List<Combo>> comboHistory;
 
+  // Dice most recently rolled. Also contains selected dice and selected Combos.
   final Roll currentRoll;
+
+  // Combos from previous rolls this turn. Doesn't include current roll's selected Combos.
   final List<Combo> currentCombos;
+
+  // No dice scored; prevent rolling. User must pass.
   final bool currentFarkle;
+
+  // All dice scored; prevent passing and deselection of current scoring dice.
   final bool currentMustRoll; 
+
+  // User has met the minumum starting score.
+  final bool currentScoreCounts;
 
   const FarkleState(
     this.turn,
-    this.isRecording,
     this.scoreHistory,
     this.comboHistory,
     this.currentRoll,
     this.currentCombos,
     this.currentFarkle,
     this.currentMustRoll,
+    this.currentScoreCounts,
   );
 
   FarkleState.initialState()
     : this.turn = 0,
-      this.isRecording = false,
       this.scoreHistory = <int>[],
       this.comboHistory = <List<Combo>>[],
       this.currentRoll = Roll.empty(),
       this.currentCombos = <Combo>[],
       this.currentFarkle = false,
-      this.currentMustRoll = true;
+      this.currentMustRoll = true,
+      this.currentScoreCounts = false;
 
   // So long as the user hasn't just been Farkled, they can roll.
   bool canRoll() => !currentFarkle;
@@ -88,54 +106,55 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
     final nextCombos = <Combo>[]
       ..addAll(state.currentCombos)
       ..addAll(selectedCombos);
-    final nextRoll = Roll.random(numberOfDice: 6 - nextCombos.expand((combo) => combo.dice).length);
+    final comboDiceCount = nextCombos.expand((combo) => combo.dice).length;
+    final nextRoll = Roll.random(numberOfDice: comboDiceCount == 6 ? 6 : 6 - comboDiceCount);
     final allCombos = Farkle.combos(nextRoll.dice);
     final allRemaining = Farkle.remaining(nextRoll.dice, allCombos);
     final nextFarkle = allCombos.length == 0;
     final nextMustRoll = allRemaining.length == 0;
     return new FarkleState(
       state.turn,
-      state.isRecording,
       state.scoreHistory,
       state.comboHistory,
-      nextRoll,
+      nextMustRoll ? nextRoll.copyWithAllSelected() : nextRoll, // auto select all combos when all dice score.
       nextCombos,
       nextFarkle,
       nextMustRoll,
+      state.currentScoreCounts,
     );
   } else if (action is PassAction) {
     // apply combos if earned
-    var nextIsRecording = state.isRecording;
     var nextScoreHistory = state.scoreHistory;
     var nextComboHistory = state.comboHistory;
+    var nextScoreCounts = state.currentScoreCounts;
     if (!state.currentFarkle) {
       final turnScore = Farkle.score(state.currentCombos);
-      if (nextIsRecording || turnScore >= Farkle.minimumScoreToStart) {
-        nextIsRecording = true;
+      if (nextScoreCounts || turnScore >= Farkle.minimumScoreToStart) {
+        nextScoreCounts = true;
         nextScoreHistory.add(turnScore);
         nextComboHistory.add(state.currentCombos);
       }
     }
     return new FarkleState(
       state.turn + 1,
-      nextIsRecording,
       nextScoreHistory,
       nextComboHistory,
       Roll.empty(),
       <Combo>[],
       false,
       true,
+      nextScoreCounts,
     );
   } else if (action is SelectDiceAction) {
     return FarkleState(
       state.turn,
-      state.isRecording,
       state.scoreHistory,
       state.comboHistory,
       state.currentRoll.copyWithToggledSelection(action.index),
       state.currentCombos,
       state.currentFarkle,
       state.currentMustRoll,
+      state.currentScoreCounts,
     );
   } else if (action is ResetAction) {
     return FarkleState.initialState();
