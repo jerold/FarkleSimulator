@@ -39,7 +39,7 @@ class UI extends NComponent {
     final combos = Farkle.combos(roll.selectedDice)..addAll(_store.state.currentCombos);
 
     final elements = <VNode>[];
-    elements.add(new VText("Score: ${Farkle.score(combos)}"));
+    elements.add(new VText("Score: ${Farkle.score(combos)}${_farkleText()}"));
     elements.add(_rollAndPass());
     for (int i = 0; i < roll.dice.length; i++) {
       final face = roll.dice[i];
@@ -52,8 +52,9 @@ class UI extends NComponent {
   VNode _rollAndPass() => new Vp()
     ..className = "buttons"
     ..children = [
-      new Va()
-        ..className = "button is-grey${_rollDisabledClass()}"
+      new VButtonElement()
+        ..className = "button is-info"
+        ..disabled = !_store.state.canRoll()
         ..key = 'roll-button'
         ..onClick = (_) {
           _store.dispatch(new RollAction());
@@ -67,8 +68,9 @@ class UI extends NComponent {
           new Vspan()
             ..innerHtml = "Roll",
         ],
-      new Va()
-        ..className = "button is-grey${_passDisabledClass()}"
+      new VButtonElement()
+        ..className = "button is-info"
+        ..disabled = !_store.state.canPass()
         ..key = 'pass-button'
         ..onClick = (_) {
           _store.dispatch(new PassAction());
@@ -86,9 +88,7 @@ class UI extends NComponent {
 
   void _onClick(int index) => _store.dispatch(new SelectDiceAction(index));
 
-  String _rollDisabledClass() => !_store.state.canRoll() ? " disabled" : "";
-
-  String _passDisabledClass() => !_store.state.canPass() ? " disabled" : "";
+  String _farkleText() => _store.state.currentFarkle ? " Farkle!" : "";
 }
 
 typedef void DiceClickHandler(int index);

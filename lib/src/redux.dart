@@ -23,11 +23,19 @@ class Roll {
 
   Roll copyWithToggledSelection(int index) => new Roll(dice, new Map<int, bool>.from(selected)..[index] = !isSelected(index));
 
-  Roll copyWithAllSelected() => new Roll(dice, new Map<int, bool>.fromIterable(dice, key: (d) => d, value: (d) => true));
+  Roll copyWithAllSelected() {
+    final nextSelected = <int, bool>{};
+    for (int i = 0; i < dice.length; i++) {
+      nextSelected[i] = true;
+    }
+    return new Roll(dice, nextSelected);
+  }
 
   bool isSelected(int index) => selected[index] ?? false;
 
   List<int> get selectedDice => new List<int>.from(this.selected.keys.where((index) => isSelected(index)).map((index) => dice[index]));
+
+  String toString() => "Roll(dice:$dice, selected:$selected)";
 }
 
 class FarkleState {
@@ -107,7 +115,7 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       ..addAll(state.currentCombos)
       ..addAll(selectedCombos);
     final comboDiceCount = nextCombos.expand((combo) => combo.dice).length;
-    final nextRoll = Roll.random(numberOfDice: comboDiceCount == 6 ? 6 : 6 - comboDiceCount);
+    final nextRoll = Roll.random(numberOfDice: 6 - comboDiceCount%6);
     final allCombos = Farkle.combos(nextRoll.dice);
     final allRemaining = Farkle.remaining(nextRoll.dice, allCombos);
     final nextFarkle = allCombos.length == 0;
