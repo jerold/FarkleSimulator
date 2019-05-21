@@ -12,5 +12,8 @@ dependencies:
   redux: ^3.0.0
 
 dev_dependencies:
+  build_runner:
+  build_test:
+  build_web_compilers:
   test: ^1.5.1
   wui_builder: ^0.7.1
