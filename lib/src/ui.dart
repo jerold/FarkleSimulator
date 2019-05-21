@@ -36,7 +36,7 @@ class UI extends NComponent {
 
   Iterable<VNode> _content() {
     final roll = _store.state.currentRoll;
-    final combos = Farkle.combos(roll.selectedDice);
+    final combos = Farkle.combos(roll.selectedDice)..addAll(_store.state.currentCombos);
 
     final elements = <VNode>[];
     elements.add(new VText("Score: ${Farkle.score(combos)}"));
