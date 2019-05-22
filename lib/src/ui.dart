@@ -115,11 +115,25 @@ class UI extends NComponent {
                 ..children = _roundHistory(),
             ],
         ],
+
+      new Vdiv()
+        ..className = "container"
+        ..children = [
+          new Vdiv()
+            ..className = "columns"
+            ..children = [
+              new Vdiv()
+                ..className = "column is-full"
+                ..children = [
+                  _resetButton(),
+                ],
+            ],
+        ],
     ];
 
   int _roundNumber() => _store.state.turn;
 
-  int _totalScore() => _store.state.scoreHistory.fold(0, (sum, next) => sum + next);
+  int _totalScore() => _store.state.score();
 
   bool _isFarkle() => _store.state.currentFarkle;
 
@@ -151,11 +165,11 @@ class UI extends NComponent {
           ..className = "title"
           ..key = "$key-$state-$points"
           ..innerHtml = "$points Points");
-    if (points == 0) {
+    if (points == 0 && Farkle.score(combos) > 0) {
       scoreSpans.addAll([
         new Vspan()
           ..className = "title"
-          ..innerHtml = "(",
+          ..innerHtml = " (",
         new Vspan()
           ..className = "title has-text-danger"
           ..innerHtml = "${Farkle.score(combos)}",
@@ -184,6 +198,22 @@ class UI extends NComponent {
     }
     return elements;
   }
+
+  VNode _resetButton() => new VButtonElement()
+    ..className = "button is-danger is-fullwidth"
+    ..key = 'roll-button'
+    ..onClick = (_) {
+      _store.dispatch(new ResetAction());
+    }
+    ..children = [
+      new Vspan()
+        ..className = "icon"
+        ..children = [
+          new Vi()..className = "fas fa-redo",
+        ],
+      new Vspan()
+        ..innerHtml = "Reset",
+    ];
 
   VNode _rollButton() => new VButtonElement()
     ..className = "button is-info is-fullwidth"

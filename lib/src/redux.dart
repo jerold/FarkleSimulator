@@ -71,6 +71,8 @@ class FarkleState {
   // User has met the minumum starting score.
   final bool currentScoreCounts;
 
+  final bool won;
+
   const FarkleState(
     this.turn,
     this.scoreHistory,
@@ -80,6 +82,7 @@ class FarkleState {
     this.currentFarkle,
     this.currentMustRoll,
     this.currentScoreCounts,
+    this.won,
   );
 
   FarkleState.initialState()
@@ -90,13 +93,16 @@ class FarkleState {
       this.currentCombos = <Combo>[],
       this.currentFarkle = false,
       this.currentMustRoll = true,
-      this.currentScoreCounts = false;
+      this.currentScoreCounts = false,
+      this.won = false;
 
   // So long as the user hasn't just been Farkled, they can roll.
-  bool canRoll() => !currentFarkle;
+  bool canRoll() => !won && !currentFarkle;
 
   // So long as the user hasn't just scored with all dice, they can pass.
-  bool canPass() => !currentMustRoll;
+  bool canPass() => !won && !currentMustRoll;
+
+  int score() => scoreHistory.fold(0, (sum, next) => sum + next);
 
   String toString() => '''
 FarkleState(
@@ -157,6 +163,7 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       nextFarkle,
       nextMustRoll,
       state.currentScoreCounts,
+      state.won,
     );
   } else if (action is PassAction) {
     // apply combos if earned
@@ -166,6 +173,7 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
     final selectedDice = state.currentRoll.selectedDice;
     final selectedCombos = Farkle.combos(selectedDice);
     var nextScore = 0;
+    var nextWon = state.won;
     final nextCombos = <Combo>[]
       ..addAll(state.currentCombos)
       ..addAll(selectedCombos);
@@ -173,6 +181,9 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       if (nextScoreCounts || Farkle.score(nextCombos) >= Farkle.minimumScoreToStart) {
         nextScore = Farkle.score(nextCombos);
         nextScoreCounts = true;
+        if (state.score() + nextScore >= Farkle.minimumScoreToEnd) {
+          nextWon = true;
+        }
       }
     }
     nextScoreHistory.add(nextScore);
@@ -186,6 +197,7 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       false,
       true,
       nextScoreCounts,
+      nextWon,
     );
   } else if (action is SelectDiceAction) {
     return FarkleState(
@@ -197,6 +209,7 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       state.currentFarkle,
       state.currentMustRoll,
       state.currentScoreCounts,
+      state.won,
     );
   } else if (action is ResetAction) {
     return FarkleState.initialState();
