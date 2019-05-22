@@ -208,6 +208,7 @@ class UI extends NComponent {
     ..key = 'pass-button'
     ..onClick = (_) {
       _store.dispatch(new PassAction());
+      _store.dispatch(new RollAction());
     }
     ..children = [
       new Vspan()
