@@ -154,6 +154,7 @@ class UI extends NComponent {
 
   VNode _round(int points, Iterable<Combo> combos, String key, DiceState state) => new Vdiv()
     ..className = "notification"
+    ..key = key
     ..children = [_combos(points, combos, key, state)];
 
   VNode _combos(int points, Iterable<Combo> combos, String key, DiceState state) {
@@ -256,8 +257,6 @@ class UI extends NComponent {
     ];
 
   void _onClick(int index) => _store.dispatch(new SelectDiceAction(index));
-
-  String _farkleText() => _store.state.currentFarkle ? " Farkle!" : "";
 }
 
 typedef void DiceClickHandler(int index);
@@ -315,22 +314,4 @@ Iterable<VNode> _smallDice(Combo combo, DiceState state, String key) {
         new Vi()
           ..className = "fas fa-lg ${_diceFaceClass(combo.dice[i])}"
       ]);
-
-  // return new Vdiv()
-  //   ..key = '$combo'
-  //   ..children = new List<VNode>.generate(combo.dice.length, (i) => new Vspan()
-  //     ..className = "animated fadeInDown icon ${_diceStateClass(state)}"
-  //     ..children = [
-  //       new Vi()
-  //         ..className = "fas fa-lg ${_diceFaceClass(combo.dice[i])}"
-  //     ]);
-
-  // new List<VNode>.generate(combo.dice.length, (i) => new Vspan()
-  //   ..className = "animated fadeInDown icon tag ${_diceStateClass(state)}"
-  //   ..children = [new Vi()..className = "fas fa-lg ${_diceFaceClass(combo.dice[i])}"]);
-
-  // return new Vspan()
-  //   ..className = "animated fadeInDown icon ${_diceStateClass(state)}"
-  //   ..key = '$combo'
-  //   ..children = new List<VNode>.generate(combo.dice.length, (i) => new Vi()..className = "fas fa-lg ${_diceFaceClass(combo.dice[i])}");
 }
