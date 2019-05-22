@@ -11,12 +11,31 @@ class Farkle {
 
   static int roll() => __roll(null);
   static List<int> toss({int numberOfDice = 6}) => __toss(numberOfDice ?? 6);
+  static List<bool> scoringDice(List<int> dice) => __scoringDice(dice);
   static List<Combo> combos(List<int> dice) => __combos(dice);
   static List<int> remaining(List<int> dice, List<Combo> combos) => __remaining(dice, combos);
   static int score(List<Combo> combos) => __score(combos);
 
   static List<InDiceCheck> get inDiceChecks => __inDiceChecks;
   static List<ComboMaker> get comboMakers => __comboMakers;
+}
+
+// given a List of dice, return a List of the same length and order
+// indicating this dice belongs to combos existing in the given dice @_@.
+List<bool> __scoringDice(List<int> startingDice) {
+  final inCombos = new List<bool>.filled(startingDice.length, false);
+  final combos = Farkle.combos(startingDice);
+  for (final combo in combos) {
+    for (final die in combo.dice) {
+      for (int i = 0; i < startingDice.length; i++) {
+        if (!inCombos[i] && startingDice[i] == die) {
+          inCombos[i] = true;
+          break;
+        }
+      }
+    }
+  }
+  return inCombos;
 }
 
 const __straight = const Combo([1,2,3,4,5,6], 1500, 'Straight');

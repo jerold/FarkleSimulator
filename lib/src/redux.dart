@@ -23,6 +23,14 @@ class Roll {
 
   Roll copyWithToggledSelection(int index) => new Roll(dice, new Map<int, bool>.from(selected)..[index] = !isSelected(index));
 
+  Roll copyWithToggledSelections(Iterable<int> indices) {
+    final selections = new Map<int, bool>.from(selected);
+    for (final index in indices) {
+      selections[index] = !isSelected(index);
+    }
+    return new Roll(dice, selections);
+  }
+
   Roll copyWithAllSelected() {
     final nextSelected = <int, bool>{};
     for (int i = 0; i < dice.length; i++) {
@@ -89,6 +97,19 @@ class FarkleState {
 
   // So long as the user hasn't just scored with all dice, they can pass.
   bool canPass() => !currentMustRoll;
+
+  String toString() => '''
+FarkleState(
+    turn: $turn,
+    scoreHistory: $scoreHistory,
+    comboHistory: $comboHistory,
+    currentRoll: $currentRoll,
+    currentCombos: $currentCombos,
+    currentFarkle: $currentFarkle,
+    currentMustRoll: $currentMustRoll,
+    currentScoreCounts: $currentScoreCounts,
+);
+  ''';
 }
 
 class FarkleAction {
@@ -120,11 +141,18 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
     final allRemaining = Farkle.remaining(nextRoll.dice, allCombos);
     final nextFarkle = allCombos.length == 0;
     final nextMustRoll = allRemaining.length == 0;
+
+    final scoringIndices = Farkle.scoringDice(nextRoll.dice);
+    final toSelect = <int>[];
+    for (int i = 0; i < nextRoll.dice.length; i++) {
+      if (scoringIndices[i]) toSelect.add(i);
+    }
+
     return new FarkleState(
       state.turn,
       state.scoreHistory,
       state.comboHistory,
-      nextMustRoll ? nextRoll.copyWithAllSelected() : nextRoll, // auto select all combos when all dice score.
+      nextRoll.copyWithToggledSelections(toSelect), // selects possible scoring dice
       nextCombos,
       nextFarkle,
       nextMustRoll,
@@ -132,17 +160,23 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
     );
   } else if (action is PassAction) {
     // apply combos if earned
-    var nextScoreHistory = state.scoreHistory;
-    var nextComboHistory = state.comboHistory;
+    var nextScoreHistory = new List<int>.from(state.scoreHistory);
+    var nextComboHistory = new List<List<Combo>>.from(state.comboHistory);
     var nextScoreCounts = state.currentScoreCounts;
+    final selectedDice = state.currentRoll.selectedDice;
+    final selectedCombos = Farkle.combos(selectedDice);
+    var nextScore = 0;
+    final nextCombos = <Combo>[]
+      ..addAll(state.currentCombos)
+      ..addAll(selectedCombos);
     if (!state.currentFarkle) {
-      final turnScore = Farkle.score(state.currentCombos);
-      if (nextScoreCounts || turnScore >= Farkle.minimumScoreToStart) {
+      if (nextScoreCounts || Farkle.score(nextCombos) >= Farkle.minimumScoreToStart) {
+        nextScore = Farkle.score(nextCombos);
         nextScoreCounts = true;
-        nextScoreHistory.add(turnScore);
-        nextComboHistory.add(state.currentCombos);
       }
     }
+    nextScoreHistory.add(nextScore);
+    nextComboHistory.add(nextCombos);
     return new FarkleState(
       state.turn + 1,
       nextScoreHistory,
