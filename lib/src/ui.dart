@@ -203,8 +203,8 @@ class UI extends NComponent {
 
   VNode _roundHistoryTableRow(int round, int points, Iterable<Combo> combos, String key, DiceState state) {
     final farkle = points == 0 && Farkle.score(combos) > 0;
-    final pointsScored = !farkle ? '$points' : '';
-    final pointsMissed = farkle ? '${Farkle.score(combos)}' : '';
+    final pointsScored = !farkle && points > 0 ? '$points' : '';
+    final pointsMissed = farkle || points == 0 ? '${Farkle.score(combos)}' : '';
     final txtColorClass = round == _store.state.comboHistory.length ? 'has-text-info' : '';
     return new Vtr()
       ..children = [
