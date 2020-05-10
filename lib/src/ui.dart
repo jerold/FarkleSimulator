@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:redux/redux.dart';
 import 'package:meta/meta.dart';
@@ -52,8 +53,8 @@ class UI extends NComponent {
 
     // only show game rounds when there are rounds to show
     if (_store.state.hasStarted()) {
-      // children.add(_roundHistoryComponent());
-      children.add(_historyTableComponent());
+      children.add(_roundHistoryComponent());
+      // children.add(_historyTableComponent());
     }
 
     return new Vsection()
@@ -77,7 +78,6 @@ class UI extends NComponent {
                     ..className = "level"
                     ..children = [new Vdiv()
                         ..className = "level-item has-text-centered"
-                        // ..key = 'total-$totalScore'
                         ..children = [
                           new Vp()
                             ..className = "title"
@@ -175,7 +175,7 @@ class UI extends NComponent {
     for (int i = _store.state.comboHistory.length - 1; i >= 0; i--) {
       final round = _store.state.comboHistory[i];
       final score = _store.state.scoreHistory[i];
-      rounds.add(_gameHistoryTableRow(i, score, round, 'round-$i', score == 0 ? DiceState.nonScoring : DiceState.scoring));
+      rounds.add(_gameHistoryTableRow(i, score, round, score == 0 ? DiceState.nonScoring : DiceState.scoring));
     }
     return rounds;
   }
@@ -202,7 +202,7 @@ class UI extends NComponent {
         ],
     ];
 
-  VNode _gameHistoryTableRow(int round, int points, Iterable<Combo> combos, String key, DiceState state) {
+  VNode _gameHistoryTableRow(int round, int points, Iterable<Combo> combos, DiceState state) {
     final farkle = points == 0 && Farkle.score(combos) > 0;
     final pointsScored = !farkle && points > 0 ? '$points' : '';
     final pointsMissed = farkle || points == 0 ? '${Farkle.score(combos)}' : '';
@@ -228,23 +228,22 @@ class UI extends NComponent {
     final bankedCombos = _store.state.currentCombos;
     if (selectedCombos.length > 0 || bankedCombos.length > 0) {
       final roundNumber = _store.state.comboHistory.length+1;
-      rounds.add(_round(roundNumber, _currentRoundScore(), currentCombos, 'current-${_store.state.comboHistory.length+1}', _isFarkle() ? DiceState.nonScoring : DiceState.enabled, selectedCombos: selectedCombos));
+      rounds.add(_round(roundNumber, _currentRoundScore(), currentCombos, _isFarkle() ? DiceState.nonScoring : DiceState.enabled, selectedCombos: selectedCombos));
     }
     for (int i = _store.state.comboHistory.length - 1; i >= 0; i--) {
       final roundNumber = i + 1;
       final round = _store.state.comboHistory[i];
       final score = _store.state.scoreHistory[i];
-      rounds.add(_round(roundNumber, score, round, 'round-$i', score == 0 ? DiceState.nonScoring : DiceState.scoring));
+      rounds.add(_round(roundNumber, score, round, score == 0 ? DiceState.nonScoring : DiceState.scoring));
     }
     return rounds;
   }
 
-  VNode _round(int round, int points, Iterable<Combo> combos, String key, DiceState state, {Iterable<Combo> selectedCombos}) => new Vdiv()
+  VNode _round(int round, int points, Iterable<Combo> combos, DiceState state, {Iterable<Combo> selectedCombos}) => new Vdiv()
     ..className = "notification"
-    ..key = "round-$key"
-    ..children = [_combos(round, points, combos, key, state, selectedCombos: selectedCombos)];
+    ..children = [_combos(round, points, combos, state, selectedCombos: selectedCombos)];
 
-  VNode _combos(int round, int points, Iterable<Combo> combos, String key, DiceState state, {Iterable<Combo> selectedCombos}) {
+  VNode _combos(int round, int points, Iterable<Combo> combos, DiceState state, {Iterable<Combo> selectedCombos}) {
     selectedCombos ??= <Combo>[];
     final lis = <Vli>[];
 
@@ -255,57 +254,47 @@ class UI extends NComponent {
       scoreSpans.addAll([
         new Vspan()
           ..className = "title"
-          ..key = "combo-$key-$state-$points-0"
           ..innerHtml = "$points(",
         new Vspan()
           ..className = "title has-text-danger"
-          ..key = "combo-$key-$state-$points-1"
           ..innerHtml = "${Farkle.score(combos)}",
         new Vspan()
           ..className = "title"
-          ..key = "combo-$key-$state-$points-2"
           ..innerHtml = ") Points",
       ]);
     } else if (selectedCombos.length > 0) {
       scoreSpans.addAll([
         new Vspan()
           ..className = "title"
-          ..key = "combo-$key-$state-$points-0"
           ..innerHtml = "$points(",
         new Vspan()
           ..className = "title has-text-info"
-          ..key = "combo-$key-$state-$points-1"
           ..innerHtml = "${Farkle.score(selectedCombos)}",
         new Vspan()
           ..className = "title"
-          ..key = "combo-$key-$state-$points-2"
           ..innerHtml = ") Points",
       ]);
     } else {
       scoreSpans.add(new Vspan()
         ..className = "title"
-        ..key = "score-$key-$state-$points-${combos.length+selectedCombos.length}"
         ..innerHtml = "$points Points");
     }
     lis.add(new Vli()..children = scoreSpans);
 
+    var diceIndex = 0;
+
     // add dice showing banked and selectedcombos
     lis.addAll(selectedCombos.map((c) => new Vli()
-      ..key = "modcombos-$round-$key-$c-$state"
-      ..children = _smallDice(c, DiceState.selectedScoring, key)));
+      ..children = _smallDice(c, DiceState.selectedScoring)));
     lis.addAll(combos.map((c) => new Vli()
-      ..key = "combos-$key-$c-$state"
-      ..children = _smallDice(c, state, key)));
+      ..children = _smallDice(c, state, key: 'dice-${round}-${diceIndex++}')));
 
     // add round number
     lis.add(new Vli()..children = [new Vspan()
         ..className = "title"
-        ..key = "round-$round"
         ..innerHtml = "Round #$round"]);
 
     return new Vnav()
-      //..className = "breadcrumb has-bullet-separator"
-      ..key = "$round-$key-$combos"
       ..children = [
         new Vul()..children = lis,
       ];
@@ -324,7 +313,6 @@ class UI extends NComponent {
 
   VNode _resetButton() => new VButtonElement()
     ..className = "button is-danger is-fullwidth"
-    ..key = 'reset-button'
     ..onClick = (_) {
       _store.dispatch(new ResetAction());
     }
@@ -341,7 +329,6 @@ class UI extends NComponent {
   VNode _rollButton() => new VButtonElement()
     ..className = "button is-info is-fullwidth"
     ..disabled = !_store.state.canRoll()
-    ..key = 'roll-button'
     ..onClick = (_) {
       _store.dispatch(new RollAction());
     }
@@ -367,7 +354,6 @@ class UI extends NComponent {
     return new VButtonElement()
     ..className = 'button $colorClass is-fullwidth'
     ..disabled = !_store.state.canPass()
-    ..key = 'pass-button'
     ..onClick = (_) {
       _store.dispatch(new PassAction());
       if (!_store.state.won) {
@@ -376,7 +362,6 @@ class UI extends NComponent {
     }
     ..children = [
       new Vspan()
-        ..key = 'pass-button-icon-$iconClass'
         ..className = 'icon'
         ..children = [
           new Vi()..className = 'fas $iconClass',
@@ -427,7 +412,7 @@ String _diceFaceClass(int face) {
 VNode _bigDice(int face, DiceState state, int index, DiceClickHandler clickHandler) {
   return new Vspan()
     ..className = "animated jackInTheBox icon is-large ${_diceStateClass(state)}"
-    ..key = 'big-dice-$index-$face-state'
+    ..key = '${Random().nextInt(99999999)}'
     ..onClick = (_) {
       clickHandler(index);
     }
@@ -436,10 +421,10 @@ VNode _bigDice(int face, DiceState state, int index, DiceClickHandler clickHandl
     ];
 }
 
-Iterable<VNode> _smallDice(Combo combo, DiceState state, String key) {
+Iterable<VNode> _smallDice(Combo combo, DiceState state, {String key}) {
   return new List<VNode>.generate(combo.dice.length, (i) => new Vspan()
       ..className = "icon ${_diceStateClass(state)}"
-      ..key = "small-dice-$i-${combo.dice[i]}-$state-$key"
+      ..key = key != null ? '$key-$i' : '${Random().nextInt(99999999)}'
       ..children = [
         new Vi()
           ..className = "fas fa-lg ${_diceFaceClass(combo.dice[i])}"
