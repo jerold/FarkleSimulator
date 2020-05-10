@@ -1,6 +1,6 @@
 {
-  "name": "farkle_simulator",
-  "short_name": "farkle_simulator",
+  "name": "Farkle!",
+  "short_name": "Farkle!",
   "description": "Simulates rounds of Farkle.",
   "lang": "en-US",
   "start_url": "/",

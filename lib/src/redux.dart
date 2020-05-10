@@ -96,6 +96,8 @@ class FarkleState {
       this.currentScoreCounts = false,
       this.won = false;
 
+  bool hasStarted() => !currentRoll.dice.isEmpty || !currentCombos.isEmpty || !comboHistory.isEmpty;
+
   // So long as the user hasn't just been Farkled, they can roll.
   bool canRoll() => !won && !currentFarkle;
 

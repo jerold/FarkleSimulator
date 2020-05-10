@@ -30,16 +30,26 @@ class UI extends NComponent {
   }
 
   @override
-  VNode render() => new Vsection()
-    ..className = "section"
-    ..children = [
+  VNode render() {
+    final children = <VNode>[
       _resetOptionComponent(),
       _scoreHeroComponent(),
       _currentDiceComponent(),
       _turnOptionsComponent(),
-      _roundHistoryTableComponent(),
-      // _roundHistoryComponent(),
     ];
+
+    print('JJA - ${_store.state.hasStarted()}');
+
+    if (_store.state.hasStarted()) {
+      children.add(_roundHistoryComponent());
+    } else {
+      children.add(_historyTableComponent());
+    }
+
+    return new Vsection()
+      ..className = "section"
+      ..children = children;
+  }
 
   VNode _scoreHeroComponent() => new Vdiv()
     ..className = "container"
@@ -55,26 +65,49 @@ class UI extends NComponent {
                 ..children = [
                   new Vnav()
                     ..className = "level"
-                    ..children = [
-                      new Vdiv()
-                        ..className = "level-item has-text-centered"
-                        ..children = [
-                          new Vp()
-                            ..className = "title"
-                            ..innerHtml = "Round: ${_roundNumber()}",
-                        ],
-                      new Vdiv()
-                        ..className = "level-item has-text-centered"
-                        ..children = [
-                          new Vp()
-                            ..className = "title"
-                            ..innerHtml = "Total Score: ${_totalScore()}",
-                        ],
-                    ],
+                    ..children = _scoreHeroChildren(),
                 ],
             ],
         ],
     ];
+
+  Iterable<VNode> _scoreHeroChildren() {
+    final roundNum = _roundNumber();
+    final children = <VNode>[new Vdiv()
+        ..className = "level-item has-text-centered"
+        // ..key = 'round-$roundNum'
+        ..children = [
+          new Vp()
+            ..className = "title"
+            ..innerHtml = "Round: $roundNum",
+        ]
+    ];
+
+    final roundScore = _currentRoundScore();
+    if (!_store.state.won && (_isFarkle() || roundScore > 0)) {
+      children.add(new Vdiv()
+          ..className = "level-item has-text-centered"
+          // ..key = 'score-$roundScore'
+          ..children = [
+            new Vp()
+              ..className = "title"
+              ..innerHtml = _isFarkle() ? 'Farkle!' : 'Score: $roundScore',
+          ]);
+    }
+
+    final totalScore = _totalScore();
+    if (totalScore > 0) {
+      children.add(new Vdiv()
+          ..className = "level-item has-text-centered"
+          // ..key = 'total-$totalScore'
+          ..children = [
+            new Vp()
+              ..className = "title"
+              ..innerHtml = "Total Score: $totalScore",
+          ]);
+    }
+    return children;
+  }
 
   VNode _currentDiceComponent() {
     final children = <VNode>[];
@@ -132,14 +165,14 @@ class UI extends NComponent {
         ],
     ];
 
-  VNode _roundHistoryTableComponent() => new Vdiv()
+  VNode _historyTableComponent() => new Vdiv()
     ..className = "container"
     ..children = [
       new Vtable()
         ..className = 'table is-fullwidth'
         ..children = [
           new Vthead()
-            ..children = _roundHistoryTableRows(),
+            ..children = _gameHistoryTableRows(),
         ],
     ];
 
@@ -161,25 +194,26 @@ class UI extends NComponent {
 
   int _totalScore() => _store.state.score();
 
+  int _currentRollScore() => Farkle.score(Farkle.combos(_store.state.currentRoll.dice));
+
+  int _currentCombosScore() => Farkle.score(_store.state.currentCombos);
+
+  int _currentRoundScore() => _isFarkle() ? 0 : _currentCombosScore() + _currentRollScore();
+
   bool _isFarkle() => _store.state.currentFarkle;
 
-  Iterable<VNode> _roundHistoryTableRows() {
-    final currentCombos = _store.state.currentCombos;
-    final currentScore = _isFarkle() ? 0 : Farkle.score(currentCombos);
+  Iterable<VNode> _gameHistoryTableRows() {
     final rounds = <VNode>[];
-    rounds.add(_roundHistoryHeaderTableRow());
-    if (_store.state.currentCombos.length > 0) {
-      rounds.add(_roundHistoryTableRow(_store.state.comboHistory.length, currentScore, currentCombos, 'current', _isFarkle() ? DiceState.nonScoring : DiceState.enabled));
-    }
+    rounds.add(_gameHistoryHeaderTableRow());
     for (int i = _store.state.comboHistory.length - 1; i >= 0; i--) {
       final round = _store.state.comboHistory[i];
       final score = _store.state.scoreHistory[i];
-      rounds.add(_roundHistoryTableRow(i, score, round, 'round-$i', score == 0 ? DiceState.nonScoring : DiceState.scoring));
+      rounds.add(_gameHistoryTableRow(i, score, round, 'round-$i', score == 0 ? DiceState.nonScoring : DiceState.scoring));
     }
     return rounds;
   }
 
-  VNode _roundHistoryHeaderTableRow() => new Vtr()
+  VNode _gameHistoryHeaderTableRow() => new Vtr()
     ..children = [
       new Vth()
         ..children = [
@@ -201,7 +235,7 @@ class UI extends NComponent {
         ],
     ];
 
-  VNode _roundHistoryTableRow(int round, int points, Iterable<Combo> combos, String key, DiceState state) {
+  VNode _gameHistoryTableRow(int round, int points, Iterable<Combo> combos, String key, DiceState state) {
     final farkle = points == 0 && Farkle.score(combos) > 0;
     final pointsScored = !farkle && points > 0 ? '$points' : '';
     final pointsMissed = farkle || points == 0 ? '${Farkle.score(combos)}' : '';
@@ -402,7 +436,7 @@ VNode _bigDice(int face, DiceState state, int index, DiceClickHandler clickHandl
 
 Iterable<VNode> _smallDice(Combo combo, DiceState state, String key) {
   return new List<VNode>.generate(combo.dice.length, (i) => new Vspan()
-      ..className = "animated fadeInDown icon ${_diceStateClass(state)}"
+      ..className = "icon ${_diceStateClass(state)}"
       ..key = "small-dice-$i-${combo.dice[i]}-$state-$key"
       ..children = [
         new Vi()
