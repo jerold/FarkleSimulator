@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:html' show window;
 import 'dart:math';
 
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:redux/redux.dart';
 import 'package:meta/meta.dart';
 import 'package:wui_builder/components.dart';
@@ -10,17 +12,33 @@ import 'package:wui_builder/wui_builder.dart';
 import 'package:farkle_simulator/src/farkle.dart';
 import 'package:farkle_simulator/src/redux.dart';
 
+const localStorageKey = 'farkle-scores';
+
+final dateFormat = DateFormat.yMd().add_jm();
+
 class UI extends NComponent {
   Store<FarkleState> _store;
   StreamSubscription _sub;
 
+  void loadRecordsFromLocalStorage() {
+    final records = recordsFromJson(window.localStorage[localStorageKey]);
+    if (records.isNotEmpty) _store.dispatch(SetPersonalRecords(records));
+    print('From Storage: ${_store.state.personalRecords}');
+  }
+
+  void saveRecordsToLocalStorage() {
+    print('To Storage: ${_store.state.personalRecords}');
+    window.localStorage[localStorageKey] = recordsToJson(_store.state.personalRecords);
+  }
+
   UI() {
-    this._store = new Store<FarkleState>(farkleStateReducer, initialState: new FarkleState.initialState());
+    _store = new Store<FarkleState>(farkleStateReducer, initialState: new FarkleState.initialState());
+    loadRecordsFromLocalStorage();
   }
 
   @mustCallSuper
   void componentWillMount() {
-    _store.onChange.listen(_update);
+    _sub = _store.onChange.listen(_update);
   }
 
   void _update(_) => update();
@@ -54,7 +72,8 @@ class UI extends NComponent {
     // only show game rounds when there are rounds to show
     if (_store.state.hasStarted()) {
       children.add(_roundHistoryComponent());
-      // children.add(_historyTableComponent());
+    } else {
+      children.add(_personalRecordsTableComponent());
     }
 
     return new Vsection()
@@ -132,14 +151,14 @@ class UI extends NComponent {
         ],
     ];
 
-  VNode _historyTableComponent() => new Vdiv()
+  VNode _personalRecordsTableComponent() => new Vdiv()
     ..className = "container"
     ..children = [
       new Vtable()
         ..className = 'table is-fullwidth'
         ..children = [
           new Vthead()
-            ..children = _gameHistoryTableRows(),
+            ..children = _personalRecordsTableRows(),
         ],
     ];
 
@@ -169,55 +188,48 @@ class UI extends NComponent {
 
   bool _isFarkle() => _store.state.currentFarkle;
 
-  Iterable<VNode> _gameHistoryTableRows() {
-    final rounds = <VNode>[];
-    rounds.add(_gameHistoryHeaderTableRow());
-    for (int i = _store.state.comboHistory.length - 1; i >= 0; i--) {
-      final round = _store.state.comboHistory[i];
-      final score = _store.state.scoreHistory[i];
-      rounds.add(_gameHistoryTableRow(i, score, round, score == 0 ? DiceState.nonScoring : DiceState.scoring));
+  Iterable<VNode> _personalRecordsTableRows() {
+    final rows = <VNode>[];
+    rows.add(_personalRecordsHeaderTableRow());
+    final records = _store.state.personalRecords..sort();
+    for (int i = 0; i < records.length; i++) {
+      final record = records[i];
+      rows.add(_personalRecordTableRow(i, record));
     }
-    return rounds;
+    return rows;
   }
 
-  VNode _gameHistoryHeaderTableRow() => new Vtr()
+  VNode _personalRecordsHeaderTableRow() => new Vtr()
     ..children = [
       new Vth()
         ..children = [
           new Vabbr()
-            ..title = 'Round'
-            ..innerHtml = 'Round',
+            ..title = 'Rounds to Win'
+            ..innerHtml = 'Rounds to Win',
         ],
       new Vth()
         ..children = [
           new Vabbr()
-            ..title = 'Points Scored'
-            ..innerHtml = 'Points Scored',
+            ..title = 'Final Score'
+            ..innerHtml = 'Final Score',
         ],
       new Vth()
         ..children = [
           new Vabbr()
-            ..title = 'Points Missed'
-            ..innerHtml = 'Points Missed',
+            ..title = 'Date'
+            ..innerHtml = 'Date',
         ],
     ];
 
-  VNode _gameHistoryTableRow(int round, int points, Iterable<Combo> combos, DiceState state) {
-    final farkle = points == 0 && Farkle.score(combos) > 0;
-    final pointsScored = !farkle && points > 0 ? '$points' : '';
-    final pointsMissed = farkle || points == 0 ? '${Farkle.score(combos)}' : '';
-    final txtColorClass = round == _store.state.comboHistory.length ? 'has-text-info' : '';
+  VNode _personalRecordTableRow(int index, Record record) {
     return new Vtr()
       ..children = [
         new Vth()
-          ..className = txtColorClass
-          ..innerHtml = '${round + 1}',
+          ..innerHtml = '${record.rounds}',
         new Vtd()
-          ..className = 'has-text-success'
-          ..innerHtml = pointsScored,
+          ..innerHtml = '${record.score}',
         new Vtd()
-          ..className = 'has-text-danger'
-          ..innerHtml = pointsMissed,
+          ..innerHtml = '${dateFormat.format(record.date)}',
       ];
   }
 
@@ -358,6 +370,8 @@ class UI extends NComponent {
       _store.dispatch(new PassAction());
       if (!_store.state.won) {
         _store.dispatch(new RollAction());
+      } else {
+        saveRecordsToLocalStorage();
       }
     }
     ..children = [
