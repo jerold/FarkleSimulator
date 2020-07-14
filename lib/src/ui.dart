@@ -225,7 +225,7 @@ class UI extends NComponent {
     return new Vtr()
       ..children = [
         new Vth()
-          ..innerHtml = '${record.rounds}',
+          ..innerHtml = '${record.rounds+1}',
         new Vtd()
           ..innerHtml = '${record.score}',
         new Vtd()
