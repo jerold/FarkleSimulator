@@ -60,9 +60,9 @@ class UI extends NComponent {
     }
 
     // only show dice when there are dice to show
-    if (!_store.state.won && _currentDice().length > 0) {
-      children.add(_currentDiceComponent());
-    }
+    // if (!_store.state.won && _currentDice().length > 0) {
+    //   children.add(_currentDiceComponent());
+    // }
 
     // only show game rounds when there are rounds to show
     if (_store.state.hasStarted()) {
@@ -85,11 +85,8 @@ class UI extends NComponent {
                     (Vdiv()
                       ..className = 'columns'
                       ..children = [
-                        (Vp()
-                          ..className = 'column'
-                          ..children = [
-                            _resetButton(),
-                          ]),
+                        // only show dice when there are dice to show
+                        if (!_store.state.won && _currentDice().length > 0) _currentDiceComponent(),
                         (Vp()
                           ..className = 'column'
                           ..children = [
@@ -99,6 +96,11 @@ class UI extends NComponent {
                           ..className = 'column'
                           ..children = [
                             _passButton(),
+                          ]),
+                        (Vp()
+                          ..className = 'column'
+                          ..children = [
+                            _resetButton(),
                           ]),
                       ]),
                   ]),
@@ -139,7 +141,7 @@ class UI extends NComponent {
     ];
 
   VNode _currentDiceComponent() => new Vdiv()
-    ..className = "container round-dice"
+    ..className = "column round-dice"
     ..key = '${_store.state.scoreHistory.length}-${_store.state.currentRoll.dice.length}'
     ..id = '${_store.state.scoreHistory.length}-${_store.state.currentRoll.dice.length}'
     ..children = [
@@ -167,18 +169,6 @@ class UI extends NComponent {
             ..children = [
               _resetButton(),
             ],
-          if (true || !_store.state.won)
-            new Vdiv()
-              ..className = "column is-half"
-              ..children = [
-                _rollButton(),
-              ],
-          if (true || !_store.state.won)
-            new Vdiv()
-              ..className = "column is-half"
-              ..children = [
-                _passButton(),
-              ],
         ]
     ];
 
