@@ -8,6 +8,7 @@ environment:
   sdk: '>=2.10.0 <3.0.0'
 
 dependencies:
+  intl: any
   wui_builder: any
   redux: any
   pwa: any
