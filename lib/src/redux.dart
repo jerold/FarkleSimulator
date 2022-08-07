@@ -1,5 +1,65 @@
 
+import 'dart:convert';
+
 import 'package:farkle_simulator/src/farkle.dart';
+
+const invalid_record = Record(null, null, null, null);
+final beginning_of_time = DateTime(2020, 1, 1);
+final end_of_time = DateTime(2120, 1, 1);
+
+List<Record> recordsFromJson(String json) {
+  if (json == null) return <Record>[];
+  try {
+    var records = jsonDecode(json).map<Record>((recordJson) => Record.fromJson(recordJson)).toList();
+    records = records.where((Record r) => r.isValid).toList();
+    return records;
+  } catch (_) {
+    return <Record>[];
+  }
+}
+
+String recordsToJson(List<Record> records) => jsonEncode(records.map<String>((record) => record.toJson()).toList());
+
+class Record implements Comparable<Record> {
+  final String name; // 3 char
+  final int rounds;
+  final int score;
+  final DateTime date; // in local timezone
+
+  const Record(this.name, this.rounds, this.score, this.date);
+
+  factory Record.fromJson(String json) {
+    try {
+      final fields = jsonDecode(json) as List;
+      if (fields.length != 4) return invalid_record;
+      fields[0] as String;
+      fields[1] as int;
+      fields[2] as int;
+      fields[3] as int;
+      return Record(fields[0], fields[1], fields[2], DateTime.fromMillisecondsSinceEpoch(fields[3]).toLocal());
+    } catch (_) {
+      return invalid_record;
+    }
+  }
+
+  bool get isValid => name != null
+      && rounds != null
+      && score != null
+      && date != null
+      && date.isAfter(beginning_of_time)
+      && date.isBefore(end_of_time);
+
+  @override
+  int compareTo(Record other) {
+    if (rounds < other.rounds) return -1;
+    if (rounds == other.rounds) return -1*score.compareTo(other.score);
+    return 1;
+  }
+
+  String toJson() => jsonEncode([name, rounds, score, date?.toUtc()?.millisecondsSinceEpoch]);
+
+  String toString() => 'Record(${toJson()}, isValid:$isValid)';
+}
 
 class Roll {
   // face values rolled
@@ -73,6 +133,8 @@ class FarkleState {
 
   final bool won;
 
+  final List<Record> personalRecords;
+
   const FarkleState(
     this.turn,
     this.scoreHistory,
@@ -83,9 +145,10 @@ class FarkleState {
     this.currentMustRoll,
     this.currentScoreCounts,
     this.won,
+    this.personalRecords,
   );
 
-  FarkleState.initialState()
+  FarkleState.initialState({List<Record> personalRecords})
     : this.turn = 0,
       this.scoreHistory = <int>[],
       this.comboHistory = <List<Combo>>[],
@@ -94,7 +157,8 @@ class FarkleState {
       this.currentFarkle = false,
       this.currentMustRoll = true,
       this.currentScoreCounts = false,
-      this.won = false;
+      this.won = false,
+      this.personalRecords = personalRecords ?? <Record>[];
 
   bool hasStarted() => !currentRoll.dice.isEmpty || !currentCombos.isEmpty || !comboHistory.isEmpty;
 
@@ -135,6 +199,11 @@ class SelectDiceAction extends FarkleAction {
 
 class ResetAction extends FarkleAction {}
 
+class SetPersonalRecords extends FarkleAction {
+  final List<Record> records;
+  const SetPersonalRecords(this.records);
+}
+
 FarkleState farkleStateReducer(FarkleState state, dynamic action) {
   if (action is RollAction) {
     // apply selected combos, and roll remaining dice
@@ -166,11 +235,13 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       nextMustRoll,
       state.currentScoreCounts,
       state.won,
+      state.personalRecords,
     );
   } else if (action is PassAction) {
     // apply combos if earned
     var nextScoreHistory = new List<int>.from(state.scoreHistory);
     var nextComboHistory = new List<List<Combo>>.from(state.comboHistory);
+    var nextPersonalRecords = new List<Record>.from(state.personalRecords);
     var nextScoreCounts = state.currentScoreCounts;
     final selectedDice = state.currentRoll.selectedDice;
     final selectedCombos = Farkle.combos(selectedDice);
@@ -185,6 +256,7 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
         nextScoreCounts = true;
         if (state.score() + nextScore >= Farkle.minimumScoreToEnd) {
           nextWon = true;
+          nextPersonalRecords.add(Record('Anon', state.turn, state.score() + nextScore, DateTime.now()));
         }
       }
     }
@@ -200,6 +272,7 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       true,
       nextScoreCounts,
       nextWon,
+      nextPersonalRecords,
     );
   } else if (action is SelectDiceAction) {
     return FarkleState(
@@ -212,9 +285,23 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       state.currentMustRoll,
       state.currentScoreCounts,
       state.won,
+      state.personalRecords,
     );
   } else if (action is ResetAction) {
-    return FarkleState.initialState();
+    return FarkleState.initialState(personalRecords: state.personalRecords);
+  } else if (action is SetPersonalRecords) {
+    return FarkleState(
+      state.turn,
+      state.scoreHistory,
+      state.comboHistory,
+      state.currentRoll,
+      state.currentCombos,
+      state.currentFarkle,
+      state.currentMustRoll,
+      state.currentScoreCounts,
+      state.won,
+      action.records,
+    );
   }
 
   return state;
