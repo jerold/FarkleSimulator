@@ -16,6 +16,8 @@ class Farkle {
   static List<int> remaining(List<int> dice, List<Combo> combos) => __remaining(dice, combos);
   static int score(List<Combo> combos) => __score(combos);
 
+  static Map<int, Set<int>> diceInSameComboMap(List<int> dice) => __diceInSameComboMap(dice);
+
   static List<InDiceCheck> get inDiceChecks => __inDiceChecks;
   static List<ComboMaker> get comboMakers => __comboMakers;
 }
@@ -38,27 +40,26 @@ List<bool> __scoringDice(List<int> startingDice) {
   return inCombos;
 }
 
-const __straight = const Combo([1,2,3,4,5,6], 1500, 'Straight');
+const __straight = const Combo([1, 2, 3, 4, 5, 6], 1500, 'Straight');
 
 const __one_one = const Combo([1], 100, 'One');
 const __one_five = const Combo([5], 50, 'Five');
 
-const __two_ones = const Combo([1,1], 0, 'Two Ones');
-const __two_twos = const Combo([2,2], 0, 'Two Twos');
-const __two_threes = const Combo([3,3], 0, 'Two Threes');
-const __two_fours = const Combo([4,4], 0, 'Two Fours');
-const __two_fives = const Combo([5,5], 0, 'Two Fives');
-const __two_sixes = const Combo([6,6], 0, 'Two Sixes');
+const __two_ones = const Combo([1, 1], 0, 'Two Ones');
+const __two_twos = const Combo([2, 2], 0, 'Two Twos');
+const __two_threes = const Combo([3, 3], 0, 'Two Threes');
+const __two_fours = const Combo([4, 4], 0, 'Two Fours');
+const __two_fives = const Combo([5, 5], 0, 'Two Fives');
+const __two_sixes = const Combo([6, 6], 0, 'Two Sixes');
 const __pairs = [__two_ones, __two_twos, __two_threes, __two_fours, __two_fives, __two_sixes];
 
-const __three_ones = const Combo([1,1,1], 300, 'Three Ones');
-const __three_twos = const Combo([2,2,2], 200, 'Three Twos');
-const __three_threes = const Combo([3,3,3], 300, 'Three Threes');
-const __three_fours = const Combo([4,4,4], 400, 'Three Fours');
-const __three_fives = const Combo([5,5,5], 500, 'Three Fives');
-const __three_sixes = const Combo([6,6,6], 600, 'Three Sixes');
+const __three_ones = const Combo([1, 1, 1], 300, 'Three Ones');
+const __three_twos = const Combo([2, 2, 2], 200, 'Three Twos');
+const __three_threes = const Combo([3, 3, 3], 300, 'Three Threes');
+const __three_fours = const Combo([4, 4, 4], 400, 'Three Fours');
+const __three_fives = const Combo([5, 5, 5], 500, 'Three Fives');
+const __three_sixes = const Combo([6, 6, 6], 600, 'Three Sixes');
 const __triplets = [__three_ones, __three_twos, __three_threes, __three_fours, __three_fives, __three_sixes];
-
 
 class Combo {
   final List<int> dice;
@@ -87,7 +88,6 @@ class Combo {
 
   String toString() => "$name(${dice}, ${points}pts)";
 }
-
 
 List<int> __diceInCombos(List<Combo> combos) {
   final dice = <int>[];
@@ -126,70 +126,66 @@ int __xOfKind(int x, List<int> dice) {
   final counts = <int, int>{};
   for (final face in dice) {
     if (!counts.containsKey(face)) counts[face] = 0;
-    counts[face] ++;
+    counts[face]++;
   }
   return counts.keys.firstWhere((face) => counts[face] == x, orElse: () => 0);
 }
-
 
 class _CompositeCombo extends Combo {
   final List<Combo> combos;
   _CompositeCombo(this.combos, int points, String name) : super(__diceInCombos(combos), points, name);
 }
 
-
 class _OfKind extends Combo {
   static String _countStr(int count) {
-    switch(count) {
-      case 4: return 'Four';
-      case 5: return 'Five';
-      case 6: return 'Six';
+    switch (count) {
+      case 4:
+        return 'Four';
+      case 5:
+        return 'Five';
+      case 6:
+        return 'Six';
     }
     return '$count';
   }
 
-  _OfKind(int face, int count, int points) : super(new List<int>.filled(count, face), points, '${_countStr(count)} of a Kind');
+  _OfKind(int face, int count, int points)
+      : super(new List<int>.filled(count, face), points, '${_countStr(count)} of a Kind');
 }
-
 
 class FourOfKind extends _OfKind {
   static bool inDice(List<int> dice) => __xOfKind(4, dice) > 0;
   FourOfKind(List<int> dice) : super(__xOfKind(4, dice), 4, 1000);
 }
 
-
 class ThreePairs extends _CompositeCombo {
   static bool inDice(List<int> dice) => __pairsInDice(dice).length == 3;
   ThreePairs(List<int> dice) : super(__pairsInDice(dice), 1500, 'Three Pairs');
 }
 
-
 class FourAndPair extends _CompositeCombo {
-  static bool inDice(List<int> dice) => __xOfKind(4, dice) > 0 && __pairsInDice(__remaining(dice, [new FourOfKind(dice)])).length == 1;
+  static bool inDice(List<int> dice) =>
+      __xOfKind(4, dice) > 0 && __pairsInDice(__remaining(dice, [new FourOfKind(dice)])).length == 1;
   static List<Combo> __getCombos(List<int> dice) => <Combo>[]
-      ..add(new FourOfKind(dice))
-      ..addAll(__pairsInDice(__remaining(dice, [new FourOfKind(dice)])));
+    ..add(new FourOfKind(dice))
+    ..addAll(__pairsInDice(__remaining(dice, [new FourOfKind(dice)])));
   FourAndPair(List<int> dice) : super(FourAndPair.__getCombos(dice), 1500, 'Four and a Pair');
 }
-
 
 class FiveOfKind extends _OfKind {
   static bool inDice(List<int> dice) => __xOfKind(5, dice) > 0;
   FiveOfKind(List<int> dice) : super(__xOfKind(5, dice), 5, 2000);
 }
 
-
 class TwoTriplets extends _CompositeCombo {
   static bool inDice(List<int> dice) => __tripletsInDice(dice).length == 2;
   TwoTriplets(List<int> dice) : super(__tripletsInDice(dice), 2500, 'Two Triplets');
 }
 
-
 class SixOfKind extends _OfKind {
   static bool inDice(List<int> dice) => __xOfKind(6, dice) > 0;
   SixOfKind(List<int> dice) : super(__xOfKind(6, dice), 6, 3000);
 }
-
 
 final __inDiceChecks = <InDiceCheck>[
   SixOfKind.inDice,
@@ -199,14 +195,12 @@ final __inDiceChecks = <InDiceCheck>[
   FourAndPair.inDice,
   FourOfKind.inDice,
   ThreePairs.inDice,
-
   __three_sixes.inToss,
   __three_fives.inToss,
   __three_fours.inToss,
   __three_threes.inToss,
   __three_twos.inToss,
   __three_ones.inToss,
-
   __one_one.inToss,
   __one_five.inToss,
 ];
@@ -219,18 +213,15 @@ final __comboMakers = <ComboMaker>[
   (List<int> dice) => new FourAndPair(dice),
   (List<int> dice) => new FourOfKind(dice),
   (List<int> dice) => new ThreePairs(dice),
-  
   (List<int> dice) => __three_sixes,
   (List<int> dice) => __three_fives,
   (List<int> dice) => __three_fours,
   (List<int> dice) => __three_threes,
   (List<int> dice) => __three_twos,
   (List<int> dice) => __three_ones,
-  
   (List<int> dice) => __one_one,
   (List<int> dice) => __one_five,
 ];
-
 
 List<Combo> __combos(List<int> dice) {
   final combos = <Combo>[];
@@ -250,6 +241,38 @@ List<Combo> __combos(List<int> dice) {
     }
   }
   return combos;
+}
+
+// uses the bones of the scoring dice iteration to map dice to their combos,
+// and from there to other dice in the same combo.
+Map<int, Set<int>> __diceInSameComboMap(List<int> startingDice) {
+  final comboMembers = <int, Set<int>>{}; // set of members for each combo
+  final dieToComboMap = <int, int>{}; // dice index to combo index
+  final inCombos = new List<bool>.filled(startingDice.length, false);
+  final combos = Farkle.combos(startingDice);
+  var c = 0;
+  for (final combo in combos) {
+    for (final die in combo.dice) {
+      for (int i = 0; i < startingDice.length; i++) {
+        if (!inCombos[i] && startingDice[i] == die) {
+          //
+          comboMembers.putIfAbsent(c, () => <int>{});
+          comboMembers[c].add(i);
+          dieToComboMap[i] = c;
+
+          inCombos[i] = true;
+          break;
+        }
+      }
+    }
+    c++;
+  }
+
+  final diceInSameComboMap = <int, Set<int>>{};
+  for (final di in dieToComboMap.keys) {
+    diceInSameComboMap[di] = comboMembers[dieToComboMap[di]];
+  }
+  return diceInSameComboMap;
 }
 
 int __score(List<Combo> combos) {

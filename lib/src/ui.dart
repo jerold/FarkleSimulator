@@ -50,9 +50,9 @@ class UI extends NComponent {
 
   @override
   VNode render() {
-    final children = <VNode>[
-      _resetOptionComponent(),
-    ];
+    final children = <VNode>[];
+
+    // children.add(_turnOptionsComponent());
 
     // only show score once the score has started to accumulate
     if (_totalScore() > 0) {
@@ -64,11 +64,6 @@ class UI extends NComponent {
       children.add(_currentDiceComponent());
     }
 
-    // only show game options when playing
-    if (!_store.state.won) {
-      children.add(_turnOptionsComponent());
-    }
-
     // only show game rounds when there are rounds to show
     if (_store.state.hasStarted()) {
       children.add(_roundHistoryComponent());
@@ -76,9 +71,43 @@ class UI extends NComponent {
       children.add(_personalRecordsTableComponent());
     }
 
-    return new Vsection()
-      ..className = "section"
-      ..children = children;
+    return Vdiv()
+      ..children = [
+        (Vnav()
+          ..className = 'navbar is-fixed-bottom'
+          ..children = [
+            (Vdiv()
+              ..className = 'navbar-menu is-active'
+              ..children = [
+                (Vdiv()
+                  ..className = 'navbar-end'
+                  ..children = [
+                    (Vdiv()
+                      ..className = 'columns'
+                      ..children = [
+                        (Vp()
+                          ..className = 'column'
+                          ..children = [
+                            _resetButton(),
+                          ]),
+                        (Vp()
+                          ..className = 'column'
+                          ..children = [
+                            _rollButton(),
+                          ]),
+                        (Vp()
+                          ..className = 'column'
+                          ..children = [
+                            _passButton(),
+                          ]),
+                      ]),
+                  ]),
+              ]),
+          ]),
+        Vsection()
+          ..className = "section"
+          ..children = children,
+      ];
   }
 
   VNode _scoreHeroComponent() => new Vdiv()
@@ -91,7 +120,7 @@ class UI extends NComponent {
             ..className = "column has-text-centered"
             ..children = [
               new Vdiv()
-                ..className = "notification"
+                ..className = "notification ${_store.state.won ? 'highlight' : ''}"
                 ..children = [
                   new Vnav()
                     ..className = "level"
@@ -101,7 +130,7 @@ class UI extends NComponent {
                         ..children = [
                           new Vp()
                             ..className = "title"
-                            ..innerHtml = "Total Score: ${_totalScore()}",
+                            ..innerHtml = "${_store.state.won ? 'Final ' : ''}Score: ${_totalScore()}",
                         ]
                     ],
                 ],
@@ -110,7 +139,9 @@ class UI extends NComponent {
     ];
 
   VNode _currentDiceComponent() => new Vdiv()
-    ..className = "container"
+    ..className = "container round-dice"
+    ..key = '${_store.state.scoreHistory.length}-${_store.state.currentRoll.dice.length}'
+    ..id = '${_store.state.scoreHistory.length}-${_store.state.currentRoll.dice.length}'
     ..children = [
       new Vdiv()
         ..className = "columns is-mobile"
@@ -134,18 +165,25 @@ class UI extends NComponent {
           new Vdiv()
             ..className = "column is-half"
             ..children = [
-              _rollButton(),
+              _resetButton(),
             ],
-          new Vdiv()
-            ..className = "column is-half"
-            ..children = [
-              _passButton(),
-            ],
+          if (true || !_store.state.won)
+            new Vdiv()
+              ..className = "column is-half"
+              ..children = [
+                _rollButton(),
+              ],
+          if (true || !_store.state.won)
+            new Vdiv()
+              ..className = "column is-half"
+              ..children = [
+                _passButton(),
+              ],
         ]
     ];
 
   VNode _roundHistoryComponent() => new Vdiv()
-    ..className = "container"
+    ..className = "container round-history"
     ..children = [
       new Vdiv()
         ..className = "columns is-mobile"
@@ -163,20 +201,6 @@ class UI extends NComponent {
         ..className = 'table is-fullwidth'
         ..children = [
           new Vthead()..children = _personalRecordsTableRows(),
-        ],
-    ];
-
-  VNode _resetOptionComponent() => new Vdiv()
-    ..className = "container"
-    ..children = [
-      new Vdiv()
-        ..className = "columns"
-        ..children = [
-          new Vdiv()
-            ..className = "column is-full"
-            ..children = [
-              _resetButton(),
-            ],
         ],
     ];
 
@@ -206,14 +230,14 @@ class UI extends NComponent {
       new Vth()
         ..children = [
           new Vabbr()
-            ..title = 'Rounds to Win'
-            ..innerHtml = 'Rounds to Win',
+            ..title = 'Rounds'
+            ..innerHtml = 'Rounds',
         ],
       new Vth()
         ..children = [
           new Vabbr()
-            ..title = 'Final Score'
-            ..innerHtml = 'Final Score',
+            ..title = 'Score'
+            ..innerHtml = 'Score',
         ],
       new Vth()
         ..children = [
@@ -236,12 +260,11 @@ class UI extends NComponent {
     final currentCombos = _store.state.currentCombos;
     final rounds = <VNode>[];
     final selectedCombos = Farkle.combos(_store.state.currentRoll.selectedDice);
-    final bankedCombos = _store.state.currentCombos;
-    if (selectedCombos.length > 0 || bankedCombos.length > 0) {
+    if (!_store.state.won) {
       final roundNumber = _store.state.comboHistory.length + 1;
       rounds.add(_round(
           roundNumber, _currentRoundScore(), currentCombos, _isFarkle() ? DiceState.nonScoring : DiceState.enabled,
-          selectedCombos: selectedCombos));
+          selectedCombos: selectedCombos, highlight: true));
     }
     for (int i = _store.state.comboHistory.length - 1; i >= 0; i--) {
       final roundNumber = i + 1;
@@ -252,9 +275,10 @@ class UI extends NComponent {
     return rounds;
   }
 
-  VNode _round(int round, int points, Iterable<Combo> combos, DiceState state, {Iterable<Combo> selectedCombos}) =>
+  VNode _round(int round, int points, Iterable<Combo> combos, DiceState state,
+          {Iterable<Combo> selectedCombos, bool highlight = false}) =>
       new Vdiv()
-        ..className = "notification"
+        ..className = "notification ${highlight ? 'highlight' : ''}"
         ..children = [_combos(round, points, combos, state, selectedCombos: selectedCombos)];
 
   VNode _combos(int round, int points, Iterable<Combo> combos, DiceState state, {Iterable<Combo> selectedCombos}) {
@@ -321,7 +345,14 @@ class UI extends NComponent {
     for (int i = 0; i < roll.dice.length; i++) {
       final face = roll.dice[i];
       final state = roll.isSelected(i) ? DiceState.selectedScoring : DiceState.enabled;
-      elements.add(_bigDice(face, state, i, _onClick));
+      final isEnabled = _store.state.currentScoringDice.contains(i);
+      elements.add(_bigDice(
+        face,
+        state,
+        i,
+        isEnabled,
+        _onClickDie,
+      ));
     }
     return elements;
   }
@@ -335,9 +366,9 @@ class UI extends NComponent {
       new Vspan()
         ..className = "icon"
         ..children = [
-          new Vi()..className = "fas fa-redo",
+          new Vi()..attributes = {"class": "fas fa-redo"},
         ],
-      new Vspan()..innerHtml = "New Game",
+      new Vspan()..innerHtml = "Reset",
     ];
 
   VNode _rollButton() => new VButtonElement()
@@ -350,7 +381,7 @@ class UI extends NComponent {
       new Vspan()
         ..className = "icon"
         ..children = [
-          new Vi()..className = "fas fa-dice",
+          new Vi()..attributes = {"class": "fas fa-dice"},
         ],
       new Vspan()..innerHtml = "Roll",
     ];
@@ -379,13 +410,13 @@ class UI extends NComponent {
         new Vspan()
           ..className = 'icon'
           ..children = [
-            new Vi()..className = 'fas $iconClass',
+            new Vi()..attributes = {"class": 'fas $iconClass'},
           ],
         new Vspan()..innerHtml = labelTxt,
       ];
   }
 
-  void _onClick(int index) => _store.dispatch(new SelectDiceAction(index));
+  void _onClickDie(int index) => _store.dispatch(new SelectDiceAction(index));
 }
 
 typedef void DiceClickHandler(int index);
@@ -435,15 +466,19 @@ String _diceFaceClass(int face) {
   return "";
 }
 
-VNode _bigDice(int face, DiceState state, int index, DiceClickHandler clickHandler) {
+VNode _bigDice(int face, DiceState state, int i, bool isEnabled, DiceClickHandler clickHandler) {
   return new Vspan()
     ..className = "animated jackInTheBox icon is-large ${_diceStateClass(state)}"
-    ..key = '${Random().nextInt(99999999)}'
+    ..key = '$i-$face-${state.name}'
+    ..id = '$i-$face-${state.name}'
     ..onClick = (_) {
-      clickHandler(index);
+      if (isEnabled) clickHandler(i);
     }
     ..children = [
-      new Vi()..className = "fas fa-3x ${_diceFaceClass(face)}",
+      new Vi()
+        ..attributes = {
+          "class": "fas fa-3x ${_diceFaceClass(face)} ${isEnabled ? '' : 'disabled'}",
+        }
     ];
 }
 
@@ -452,6 +487,13 @@ Iterable<VNode> _smallDice(Combo combo, DiceState state, {String key}) {
       combo.dice.length,
       (i) => new Vspan()
         ..className = "icon ${_diceStateClass(state)}"
+        ..key = '$i-${state.name}'
+        ..id = '$i-${state.name}'
         ..key = key != null ? '$key-$i' : '${Random().nextInt(99999999)}'
-        ..children = [new Vi()..className = "fas fa-lg ${_diceFaceClass(combo.dice[i])}"]);
+        ..children = [
+          new Vi()
+            ..attributes = {
+              "class": "fas fa-lg ${_diceFaceClass(combo.dice[i])}",
+            }
+        ]);
 }

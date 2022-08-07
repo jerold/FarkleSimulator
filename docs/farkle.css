@@ -1,7 +1,42 @@
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  background-color: aliceblue;
+}
+
+.table {
+    background: none !important;
+}
+
 .notification {
     padding: 1.25rem;
 }
 
 .dice-area {
-    min-height: 94px;
+    background-color: rgba(0, 0, 0, 0.0);
+}
+
+.highlight {
+    border: 2px solid #0094ffaa;
+    box-shadow: 0px 0px 10px -4px #0094FF;
+}
+
+.disabled {
+    opacity: 0.4;
+    transform: scale(0.8);
+}
+
+.navbar-menu {
+    box-shadow: none !important;
+}
+
+.navbar {
+    box-shadow: 0px 0px 15px 15px #FFFFFF;
+}
+
+.navbar-end {
+    padding: 20px;
 }

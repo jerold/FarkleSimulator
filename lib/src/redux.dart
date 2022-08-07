@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 
 import 'package:farkle_simulator/src/farkle.dart';
@@ -42,17 +41,18 @@ class Record implements Comparable<Record> {
     }
   }
 
-  bool get isValid => name != null
-      && rounds != null
-      && score != null
-      && date != null
-      && date.isAfter(beginning_of_time)
-      && date.isBefore(end_of_time);
+  bool get isValid =>
+      name != null &&
+      rounds != null &&
+      score != null &&
+      date != null &&
+      date.isAfter(beginning_of_time) &&
+      date.isBefore(end_of_time);
 
   @override
   int compareTo(Record other) {
     if (rounds < other.rounds) return -1;
-    if (rounds == other.rounds) return -1*score.compareTo(other.score);
+    if (rounds == other.rounds) return -1 * score.compareTo(other.score);
     return 1;
   }
 
@@ -74,14 +74,37 @@ class Roll {
   );
 
   Roll.empty()
-    : this.dice = <int>[],
-      this.selected = <int, bool>{};
+      : this.dice = <int>[],
+        this.selected = <int, bool>{};
 
   Roll.random({int numberOfDice})
-    : this.dice = Farkle.toss(numberOfDice: numberOfDice ?? 6),
-      this.selected = <int, bool>{};
+      : this.dice = Farkle.toss(numberOfDice: numberOfDice ?? 6),
+        this.selected = <int, bool>{};
 
-  Roll copyWithToggledSelection(int index) => new Roll(dice, new Map<int, bool>.from(selected)..[index] = !isSelected(index));
+  Roll copyWithToggledSelection(int index) {
+    final diceInSameCombo = Farkle.diceInSameComboMap(dice)[index] ?? {};
+    if (diceInSameCombo.every((di) => isSelected(di) == isSelected(index))) {
+      return copyWithToggledSelections(diceInSameCombo);
+    } else {
+      return Roll(dice, new Map<int, bool>.from(selected)..[index] = !isSelected(index));
+    }
+
+    if (isSelected(index)) {
+      // deselect the die but also any dice associated with the same combo
+      final nextRoll = Roll(dice, new Map<int, bool>.from(selected)..[index] = !isSelected(index));
+      final nextScoringIndices = Farkle.scoringDice(nextRoll.selectedDice);
+      final nextSelected = <int, bool>{};
+      for (int i = 0; i < nextRoll.dice.length; i++) {
+        nextSelected[i] = nextScoringIndices[i];
+      }
+      return new Roll(dice, nextSelected);
+    } else {
+      // select the die but if it was part of a larger original combo select combo dice also
+    }
+
+    print('JJA ${Farkle.diceInSameComboMap(dice)}');
+    return new Roll(dice, new Map<int, bool>.from(selected)..[index] = !isSelected(index));
+  }
 
   Roll copyWithToggledSelections(Iterable<int> indices) {
     final selections = new Map<int, bool>.from(selected);
@@ -101,7 +124,8 @@ class Roll {
 
   bool isSelected(int index) => selected[index] ?? false;
 
-  List<int> get selectedDice => new List<int>.from(this.selected.keys.where((index) => isSelected(index)).map((index) => dice[index]));
+  List<int> get selectedDice =>
+      new List<int>.from(this.selected.keys.where((index) => isSelected(index)).map((index) => dice[index]));
 
   String toString() => "Roll(dice:$dice, selected:$selected)";
 }
@@ -119,6 +143,9 @@ class FarkleState {
   // Dice most recently rolled. Also contains selected dice and selected Combos.
   final Roll currentRoll;
 
+  // unique indices into currentRoll.dice for possible point-earning dice.
+  final Set<int> currentScoringDice;
+
   // Combos from previous rolls this turn. Doesn't include current roll's selected Combos.
   final List<Combo> currentCombos;
 
@@ -126,7 +153,7 @@ class FarkleState {
   final bool currentFarkle;
 
   // All dice scored; prevent passing and deselection of current scoring dice.
-  final bool currentMustRoll; 
+  final bool currentMustRoll;
 
   // User has met the minumum starting score.
   final bool currentScoreCounts;
@@ -140,6 +167,7 @@ class FarkleState {
     this.scoreHistory,
     this.comboHistory,
     this.currentRoll,
+    this.currentScoringDice,
     this.currentCombos,
     this.currentFarkle,
     this.currentMustRoll,
@@ -149,21 +177,26 @@ class FarkleState {
   );
 
   FarkleState.initialState({List<Record> personalRecords})
-    : this.turn = 0,
-      this.scoreHistory = <int>[],
-      this.comboHistory = <List<Combo>>[],
-      this.currentRoll = Roll.empty(),
-      this.currentCombos = <Combo>[],
-      this.currentFarkle = false,
-      this.currentMustRoll = true,
-      this.currentScoreCounts = false,
-      this.won = false,
-      this.personalRecords = personalRecords ?? <Record>[];
+      : this.turn = 0,
+        this.scoreHistory = <int>[],
+        this.comboHistory = <List<Combo>>[],
+        this.currentRoll = Roll.empty(),
+        this.currentScoringDice = <int>{},
+        this.currentCombos = <Combo>[],
+        this.currentFarkle = false,
+        this.currentMustRoll = true,
+        this.currentScoreCounts = false,
+        this.won = false,
+        this.personalRecords = personalRecords ?? <Record>[];
 
   bool hasStarted() => !currentRoll.dice.isEmpty || !currentCombos.isEmpty || !comboHistory.isEmpty;
 
+  // to roll again when there are scoring dice, some of the scoring dice must be counted
+  bool noScoringDiceSelected() =>
+      Farkle.combos(currentRoll.dice).length > 0 && Farkle.combos(currentRoll.selectedDice).length == 0;
+
   // So long as the user hasn't just been Farkled, they can roll.
-  bool canRoll() => !won && !currentFarkle;
+  bool canRoll() => !won && !currentFarkle && !noScoringDiceSelected();
 
   // So long as the user hasn't just scored with all dice, they can pass.
   bool canPass() => !won && !currentMustRoll;
@@ -213,7 +246,7 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       ..addAll(state.currentCombos)
       ..addAll(selectedCombos);
     final comboDiceCount = nextCombos.expand((combo) => combo.dice).length;
-    final nextRoll = Roll.random(numberOfDice: 6 - comboDiceCount%6);
+    final nextRoll = Roll.random(numberOfDice: 6 - comboDiceCount % 6);
     final allCombos = Farkle.combos(nextRoll.dice);
     final allRemaining = Farkle.remaining(nextRoll.dice, allCombos);
     final nextFarkle = allCombos.length == 0;
@@ -221,8 +254,12 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
 
     final scoringIndices = Farkle.scoringDice(nextRoll.dice);
     final toSelect = <int>[];
+    final nextScoringDice = <int>{};
     for (int i = 0; i < nextRoll.dice.length; i++) {
-      if (scoringIndices[i]) toSelect.add(i);
+      if (scoringIndices[i]) {
+        toSelect.add(i);
+        nextScoringDice.add(i);
+      }
     }
 
     return new FarkleState(
@@ -230,6 +267,7 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       state.scoreHistory,
       state.comboHistory,
       nextRoll.copyWithToggledSelections(toSelect), // selects possible scoring dice
+      nextScoringDice,
       nextCombos,
       nextFarkle,
       nextMustRoll,
@@ -267,6 +305,7 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       nextScoreHistory,
       nextComboHistory,
       Roll.empty(),
+      <int>{},
       <Combo>[],
       false,
       true,
@@ -280,6 +319,7 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       state.scoreHistory,
       state.comboHistory,
       state.currentRoll.copyWithToggledSelection(action.index),
+      state.currentScoringDice,
       state.currentCombos,
       state.currentFarkle,
       state.currentMustRoll,
@@ -295,6 +335,7 @@ FarkleState farkleStateReducer(FarkleState state, dynamic action) {
       state.scoreHistory,
       state.comboHistory,
       state.currentRoll,
+      state.currentScoringDice,
       state.currentCombos,
       state.currentFarkle,
       state.currentMustRoll,
