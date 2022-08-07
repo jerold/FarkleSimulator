@@ -1,19 +1,19 @@
 name: farkle_simulator
 version: 0.0.1
 description: Simulates rounds of Farkle.
-author: Jerold Albertson <jerold.albertson@gmail.com>
+#author: Jerold Albertson <jerold.albertson@gmail.com>
+#homepage: https://jerold.github.io/FarkleSimulator
 
 environment:
-  sdk: '>=2.0.0 <3.0.0'
+  sdk: '>=2.10.0 <3.0.0'
 
 dependencies:
-  firebase: ^5.0.3
-  redux: ^3.0.0
-  pwa: ^0.2.0
+  wui_builder: any
+  redux: any
+  pwa: any
 
 dev_dependencies:
-  build_runner: ^1.1.2
-  build_test: ^0.10.6
-  build_web_compilers: ^1.1.0
-  test: ^1.5.1+1
-  wui_builder: ^0.7.1
+  build_runner: any
+  build_test: any
+  build_web_compilers: any
+  test: any
